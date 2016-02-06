@@ -23,7 +23,9 @@ import sys
 from PyQt5.QtCore import QSize, Qt, pyqtSignal, QIODevice
 from PyQt5.QtWidgets import (QToolBar, QAction, QStackedWidget, QDesktopWidget,
                              QWidget, QVBoxLayout, QShortcut, QSplitter,
-                             QTabWidget, QFileDialog, QMessageBox, QTextEdit)
+                             QTabWidget, QFileDialog, QMessageBox, QTextEdit,
+                             QDialog, QListWidget, QListWidgetItem, QLabel,
+                             QHBoxLayout, QLineEdit, QDialogButtonBox)
 from PyQt5.QtGui import QKeySequence, QColor, QFont, QTextCursor
 from PyQt5.Qsci import QsciScintilla, QsciLexerPython
 from PyQt5.QtSerialPort import QSerialPort
@@ -46,6 +48,79 @@ elif sys.platform == 'darwin':
 NIGHT_STYLE = load_stylesheet('night.css')
 #: DAY_STYLE is a light conventional theme.
 DAY_STYLE = load_stylesheet('day.css')
+
+
+class ProjectItem(QListWidgetItem):
+    """
+    Represents a type of project template to use when starting a new block of
+    code.
+    """
+
+    def __init__(self, name, icon, path, default,
+                 parent=None):
+        """
+        Configure a project template with a name, description of the sort of
+        application to be built with such a template, associated icon, path for
+        the resulting new project file and default code to start the project
+        with.
+        """
+        super().__init__(parent)
+        self.name = name
+        self.icon = icon
+        self.path = path
+        self.default = default
+        self.setText(self.name)
+        self.setIcon(load_icon(icon))
+
+
+class ProjectSelector(QDialog):
+    """
+    Defines the UI for selection of a project template.
+    """
+    def setup(self, templates):
+        self.setMinimumSize(600, 400)
+        self.setWindowTitle('New Project')
+        widget_layout = QVBoxLayout()
+        label = QLabel('Please select the sort of project you want to create,'
+                       ' give it a name and click "OK". Otherwise click'
+                       ' "Cancel".')
+        label.setWordWrap(True)
+        widget_layout.addWidget(label)
+        self.setLayout(widget_layout)
+        self.project_list = QListWidget()
+        widget_layout.addWidget(self.project_list)
+        self.project_list.setIconSize(QSize(64, 64))
+        for item in templates:
+            ProjectItem(item['name'], item['icon'], item['path'],
+                        item['default'], self.project_list)
+        self.project_list.setCurrentRow(0)
+        proj_name = QWidget()
+        widget_layout.addWidget(proj_name)
+        proj_layout = QHBoxLayout()
+        proj_name.setLayout(proj_layout)
+        label = QLabel('Project name:')
+        self.project_name = QLineEdit()
+        proj_layout.addWidget(label)
+        proj_layout.addWidget(self.project_name)
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok |
+                                      QDialogButtonBox.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        widget_layout.addWidget(button_box)
+
+    def get_project(self):
+        """
+        Return details of the new project.
+        """
+        if self.result() == QDialog.Accepted:
+            item = self.project_list.currentItem()
+            return {
+                'path': item.path,
+                'default': item.default,
+                'name': self.project_name.text()
+            }
+        else:
+            raise RuntimeError('New project rejected.')
 
 
 class Font:
@@ -249,10 +324,14 @@ class ButtonBar(QToolBar):
         self.addAction(name="save",
                        tool_text="Save the current MicroPython script.")
         self.addSeparator()
+        self.addAction(name="run",
+                       tool_text="Run your Python script.")
         self.addAction(name="flash",
                        tool_text="Flash your code onto the micro:bit.")
+        self.addAction(name="play",
+                       tool_text="Play your PyGameZero game.")
         self.addAction(name="repl",
-                       tool_text="Use the REPL to live code the micro:bit.")
+                       tool_text="Try stuff out in the Python REPL.")
         self.addSeparator()
         self.addAction(name="zoom-in",
                        tool_text="Zoom in (to make the text bigger).")
@@ -261,6 +340,7 @@ class ButtonBar(QToolBar):
         self.addAction(name="theme",
                        tool_text="Change theme between day or night.")
         self.addSeparator()
+        self.addAction(name="help", tool_text="Show help about Mu.")
         self.addAction(name="quit", tool_text="Quit the application.")
 
     def addAction(self, name, tool_text):
@@ -282,6 +362,27 @@ class ButtonBar(QToolBar):
         for shortcut in shortcuts:
             QShortcut(QKeySequence(shortcut),
                       self.parentWidget()).activated.connect(handler)
+
+    def set_button_state(self, tab):
+        """
+        Given a tab, works out and displays the correct buttons for the type
+        of project contained within the tab.
+        """
+        run = self.slots['run']
+        flash = self.slots['flash']
+        play = self.slots['play']
+        if 'micropython' in tab.path:
+            run.setVisible(False)
+            flash.setVisible(True)
+            play.setVisible(False)
+        elif 'pygamezero' in tab.path:
+            run.setVisible(False)
+            flash.setVisible(False)
+            play.setVisible(True)
+        else:
+            run.setVisible(True)
+            flash.setVisible(False)
+            play.setVisible(False)
 
 
 class Window(QStackedWidget):
@@ -320,6 +421,20 @@ class Window(QStackedWidget):
         Returns the currently focussed tab.
         """
         return self.tabs.currentWidget()
+
+    def get_template(self, folder, templates):
+        """
+        Displays a dialog for selecting a project template and providing a name
+        for a new project. Returns the path to the expected new file and the
+        default code to start with.
+        """
+        selector = ProjectSelector(self)
+        selector.setup(templates)
+        selector.exec()
+        if selector.result() == QDialog.Accepted:
+            return selector.get_project()
+        else:
+            return None
 
     def get_load_path(self, folder):
         """
@@ -488,6 +603,14 @@ class Window(QStackedWidget):
         self.move((screen.width() - size.width()) / 2,
                   (screen.height() - size.height()) / 2)
 
+    def check_button_state(self, index):
+        """
+        Given the index of the newly selected tab, update the buttons to
+        display the correct combination depending on the type of project is
+        contained within the tab.
+        """
+        self.button_bar.set_button_state(self.widgets[index])
+
     def setup(self, theme):
         """
         Sets up the window.
@@ -510,6 +633,7 @@ class Window(QStackedWidget):
         self.button_bar = ButtonBar(self.widget)
         self.tabs = QTabWidget()
         self.tabs.setTabsClosable(True)
+        self.tabs.currentChanged.connect(self.check_button_state)
         self.tabs.tabCloseRequested.connect(self.tabs.removeTab)
 
         widget_layout.addWidget(self.button_bar)

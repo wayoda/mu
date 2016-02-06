@@ -38,6 +38,33 @@ PYTHON_DIRECTORY = os.path.join(HOME_DIRECTORY, 'python')
 DATA_DIR = appdirs.user_data_dir('mu', 'python')
 #: The path to the JSON file containing application settings.
 SETTINGS_FILE = os.path.join(DATA_DIR, 'settings.json')
+# Specifications for the built in project templates.
+TEMPLATES = [
+    {
+        'name': 'A simple Python script.',
+        'icon': 'python',
+        'path': os.path.join(PYTHON_DIRECTORY, 'scripts'),
+        'default': '# Type your Python code here\n\nprint("Hello, World!")',
+    },
+    {
+        'name': 'A MicroPython script for the BBC micro:bit.',
+        'icon': 'microbit',
+        'path': os.path.join(PYTHON_DIRECTORY, 'micropython'),
+        'default': 'from microbit import *\n\ndisplay.scroll("Hello, World!")',
+    },
+]
+try:
+    import pgzero
+    TEMPLATES.append({
+        'name': 'A PyGameZero game.',
+        'icon': 'pygamezero',
+        'path': os.path.join(PYTHON_DIRECTORY, 'pygamezero'),
+        'default': 'print("Hello")',
+    })
+except ImportError:
+    # PyGameZero isn't available so pass silently since Mu won't make it
+    # available.
+    pass
 
 
 def find_microbit():
@@ -140,6 +167,16 @@ class Editor:
             message = 'Could not find an attached BBC micro:bit.'
             self._view.show_message(message)
 
+    def run(self):
+        """
+        """
+        pass
+
+    def play(self):
+        """
+        """
+        pass
+
     def add_repl(self):
         """
         Detect a connected BBC micro:bit and if found, connect to the
@@ -177,7 +214,7 @@ class Editor:
 
     def toggle_repl(self):
         """
-        If the REPL is active, close it; otherwise open the REPL.
+            If the REPL is active, close it; otherwise open the REPL.
         """
         if self.repl is None:
             self.add_repl()
@@ -196,9 +233,19 @@ class Editor:
 
     def new(self):
         """
-        Adds a new tab to the editor.
+        Adds a new tab to the editor whose content is generated from an item
+        selected from a pre-defined list of project templates.
         """
-        self._view.add_tab(None, '')
+        result = self._view.get_template(PYTHON_DIRECTORY, TEMPLATES)
+        if result:
+            if not os.path.exists(result['path']):
+                os.makedirs(result['path'])
+            filename = result['name'].replace(' ', '_')
+            if not filename.endswith('.py'):
+                # No extension given, default to .py
+                filename += '.py'
+            full_path = os.path.join(result['path'], filename)
+            self._view.add_tab(full_path, result['default'])
 
     def load(self):
         """
@@ -259,6 +306,12 @@ class Editor:
         Make the editor's text smaller.
         """
         self._view.zoom_out()
+
+    def help(self):
+        """
+        Launches the user's browser to display the HTML based help for Mu.
+        """
+        pass
 
     def quit(self, *args, **kwargs):
         """
