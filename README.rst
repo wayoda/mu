@@ -82,7 +82,7 @@ Mu's outlook is:
 
 * Less is more (remove all unnecessary distractions);
 * Keep it simple (so Mu is easy to understand);
-* Walk the path of least resistance (Mu should be easy);
+* Walk the path of least resistance (Mu should be easy to use);
 * Have fun (learning should be a positive experience).
 
 Our first iteration targets MicroPython on the BBC micro:bit.

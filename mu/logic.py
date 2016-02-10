@@ -214,7 +214,7 @@ class Editor:
 
     def toggle_repl(self):
         """
-            If the REPL is active, close it; otherwise open the REPL.
+        If the REPL is active, close it; otherwise open the REPL.
         """
         if self.repl is None:
             self.add_repl()
@@ -238,14 +238,18 @@ class Editor:
         """
         result = self._view.get_template(PYTHON_DIRECTORY, TEMPLATES)
         if result:
-            if not os.path.exists(result['path']):
-                os.makedirs(result['path'])
-            filename = result['name'].replace(' ', '_')
-            if not filename.endswith('.py'):
-                # No extension given, default to .py
-                filename += '.py'
-            full_path = os.path.join(result['path'], filename)
-            self._view.add_tab(full_path, result['default'])
+            if result['name']:
+                if not os.path.exists(result['path']):
+                    os.makedirs(result['path'])
+                filename = result['name'].replace(' ', '_')
+                if not filename.endswith('.py'):
+                    # No extension given, default to .py
+                    filename += '.py'
+                full_path = os.path.join(result['path'], filename)
+                self._view.add_tab(full_path, result['default'])
+            else:
+                msg = 'You must give your new project a name.'
+                self._view.show_message(msg)
 
     def load(self):
         """
