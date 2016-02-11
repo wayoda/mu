@@ -21,6 +21,7 @@ import os
 import os.path
 import sys
 import json
+import webbrowser
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtSerialPort import QSerialPortInfo
 from mu.contrib import uflash, appdirs
@@ -315,7 +316,7 @@ class Editor:
         """
         Launches the user's browser to display the HTML based help for Mu.
         """
-        pass
+        webbrowser.open_new(HELP_URL)
 
     def quit(self, *args, **kwargs):
         """

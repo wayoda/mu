@@ -29,6 +29,7 @@ from PyQt5.QtWidgets import (QToolBar, QAction, QStackedWidget, QDesktopWidget,
 from PyQt5.QtGui import QKeySequence, QColor, QFont, QTextCursor
 from PyQt5.Qsci import QsciScintilla, QsciLexerPython
 from PyQt5.QtSerialPort import QSerialPort
+from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from mu.resources import load_icon, load_stylesheet
 
 
