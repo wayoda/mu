@@ -171,7 +171,9 @@ class Editor:
     def run(self):
         """
         """
-        pass
+        if not self.repl:
+            self.add_repl()
+        self._view.repl.execute("print('hello')")
 
     def play(self):
         """
@@ -185,24 +187,30 @@ class Editor:
         """
         if self.repl is not None:
             raise RuntimeError("REPL already running")
-        mb_port = find_microbit()
-        if mb_port:
-            try:
-                self.repl = REPL(port=mb_port)
-                self._view.add_repl(self.repl)
-            except IOError as ex:
-                self.repl = None
-                information = ("Click the device's reset button, wait a few"
-                               " seconds and then try again.")
-                self._view.show_message(str(ex), information)
+        if 'micropython' in self._view.current_tab.path:
+            mb_port = find_microbit()
+            if mb_port:
+                try:
+                    self.repl = REPL(port=mb_port)
+                    self._view.add_repl(self.repl)
+                except IOError as ex:
+                    self.repl = None
+                    information = ("Click the device's reset button, wait a"
+                                   " few seconds and then try again.")
+                    self._view.show_message(str(ex), information)
+            else:
+                message = 'Could not find an attached BBC micro:bit.'
+                information = ("Please make sure the device is plugged into"
+                               " this computer.\n\nThe device must have"
+                               " MicroPython flashed onto it before the REPL"
+                               " will work.\n\n"
+                               "Finally, press the device's reset button and"
+                               "wait a few seconds before trying again.")
+                self._view.show_message(message, information)
         else:
-            message = 'Could not find an attached BBC micro:bit.'
-            information = ("Please make sure the device is plugged into this"
-                           " computer.\n\nThe device must have MicroPython"
-                           " flashed onto it before the REPL will work.\n\n"
-                           "Finally, press the device's reset button and wait"
-                           " a few seconds before trying again.")
-            self._view.show_message(message, information)
+            # Non-micro:bit based REPL
+            self.repl = True
+            self._view.add_repl()
 
     def remove_repl(self):
         """
@@ -316,7 +324,7 @@ class Editor:
         """
         Launches the user's browser to display the HTML based help for Mu.
         """
-        webbrowser.open_new(HELP_URL)
+        webbrowser.open_new('http://codewith.mu/help')
 
     def quit(self, *args, **kwargs):
         """

@@ -30,6 +30,7 @@ from PyQt5.QtGui import QKeySequence, QColor, QFont, QTextCursor
 from PyQt5.Qsci import QsciScintilla, QsciLexerPython
 from PyQt5.QtSerialPort import QSerialPort
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
+from qtconsole.inprocess import QtInProcessKernelManager
 from mu.resources import load_icon, load_stylesheet
 
 
@@ -496,15 +497,28 @@ class Window(QStackedWidget):
                 return True
         return False
 
-    def add_repl(self, repl):
+    def add_repl(self, repl=None):
         """
         Adds the REPL pane to the application.
         """
-        self.repl = REPLPane(port=repl.port, theme=self.theme)
+        if repl:
+            self.repl = REPLPane(port=repl.port, theme=self.theme)
+            self.connect_zoom(self.repl)
+        else:
+            kernel_manager = QtInProcessKernelManager()
+            kernel_manager.start_kernel(show_banner=False)
+            kernel = kernel_manager.kernel
+            kernel.gui = 'qt4'
+            kernel_client = kernel_manager.client()
+            kernel_client.start_channels()
+            self.repl = RichJupyterWidget()
+            self.repl.kernel_manager = kernel_manager
+            self.repl.kernel_client = kernel_client
+            self._zoom_in.connect(self.repl._increase_font_size)
+            self._zoom_out.connect(self.repl._decrease_font_size)
         self.splitter.addWidget(self.repl)
         self.splitter.setSizes([66, 33])
         self.repl.setFocus()
-        self.connect_zoom(self.repl)
 
     def remove_repl(self):
         """
