@@ -37,9 +37,22 @@ init:
 
 install:
   # Install python dependencies (v3.2 has VC++ redistributable dependencies)
-  - cmd: pip install pyinstaller==3.3.1
+  - cmd: pip install pyinstaller==3.3
   - cmd: pip install pyzmq==15.3.0
-  - cmd: pip install -r requirements.txt
+  #- cmd: pip install -r requirements.txt
+  - cmd: pip install pyqt5
+  - cmd: pip install qscintilla
+  - cmd: pip install pytest
+  - cmd: pip install pycodestyle
+  - cmd: pip install pyflakes
+  - cmd: pip install coverage
+  - cmd: pip install sphinx
+  - cmd: pip install pytest-cov
+  - cmd: pip install pyserial
+  - cmd: pip install qtconsole
+  - cmd: pip install matplotlib
+  - cmd: pip install setuptools
+
 
   # Check installed packages
   - cmd: pip freeze
