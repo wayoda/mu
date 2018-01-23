@@ -99,4 +99,4 @@ deploy:
   set_public: true
   folder: windows
   on:
-    branch: [master, appveyor]
+    branch: [master, appveyor, pkgtest]
