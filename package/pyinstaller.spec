@@ -55,8 +55,8 @@ exe = EXE(pyz,
           strip=False,
           upx=False,
           # False hides the cli window, useful ON to debug
-          console=False,
-          debug=False,
+          console=True,
+          debug=True,
           icon='package/icons/win_icon.ico')
 
 app = BUNDLE(exe,
@@ -73,5 +73,5 @@ app = BUNDLE(exe,
 #               a.zipfiles,
 #               a.datas,
 #               strip=None,
-#               upx=True,
+#               upx=False,
 #               name='run')
