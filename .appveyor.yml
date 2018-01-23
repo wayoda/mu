@@ -1,7 +1,7 @@
 environment:
   matrix:
     - PYTHON: "C:\\Python36"
-      PYTHON_VERSION: "3.6.2"
+      PYTHON_VERSION: "3.6.4"
       PYTHON_ARCH: "32"
 
 platform: x86
@@ -36,16 +36,13 @@ init:
   - cmd: pip freeze
 
 install:
-  # Fix for PyQt not being installed in correct directory: https://github.com/appveyor/ci/issues/363
-  - cmd: REG ADD HKCU\Software\Python\PythonCore\3.6\InstallPath /f /ve /t REG_SZ /d C:\Python36
-
-  # Download PyQt5 with 10min timeout, rename to pyqt5_installer.exe, and install
-  #- ps: Start-FileDownload 'http://downloads.sourceforge.net/project/pyqt/PyQt5/PyQt-5.5.1/PyQt5-5.5.1-gpl-Py3.4-Qt5.5.1-x32.exe' -FileName pyqt5_installer.exe -Timeout 600000
-
-  #- cmd: pyqt5_installer.exe /S
+  # Download WiX with 10min timeout, and install it.
+  - ps: Start-FileDownload 'https://github.com/wixtoolset/wix3/releases/download/wix3111rtm/wix311.exe' -Timeout 600000
+  - cmd wix311.exe /S
 
   # Install python dependencies (v3.2 has VC++ redistributable dependencies)
   - cmd: pip install pyinstaller==3.3.1
+  - cmd: pip install pyzmq==15.3.0
   - cmd: pip install -r requirements.txt
 
   # Check installed packages
@@ -64,8 +61,6 @@ build: None
 
 # Makefiles support provided by MinGW, which does POSIX translations, so run tests natively as well
 test_script:
-  - cmd: make clean
-  - cmd: py.test
   - cmd: make check
 
 # Push artifacts to s3 bucket and list all
