@@ -61,8 +61,8 @@ exe = EXE(pyz,
           # https://github.com/pyinstaller/pyinstaller/issues/2659
           upx=False,
           # False hides the CLI window, useful ON to debug
-          console=True,
-          debug=True,
+          console=False,
+          debug=False,
           icon='package/icons/win_icon.ico')
 
 app = BUNDLE(exe,
