@@ -1,13 +1,11 @@
 # -*- mode: python -*-
 import os
 from glob import glob
-
-# Find PyQt5 directory
 from inspect import getfile
 import PyQt5
-pyqt_dir = os.path.dirname(getfile(PyQt5))
 
 
+# PyInstaller Cipher flag.
 block_cipher = None
 
 
@@ -24,15 +22,22 @@ for x in data_files_glob:
 
 print('Spec file resources selected: %s' % data_files)
 
+# PyQt5 and dll location, specific to PyQt5 version
+pyqt_dir = os.path.dirname(getfile(PyQt5))
+pyqt_dlls = os.path.join(pyqt_dir, 'plugins', 'platforms')
+
+
+binary_files = []
+
 
 a = Analysis(['../run.py'],
-             pathex=['../', pyqt_dir],
-             binaries=None,
+             pathex=['../', pyqt_dir, pyqt_dlls],
+             binaries=binary_files,
              datas=data_files,
-             hiddenimports = ['sip'],
+             hiddenimports = ['ipykernel.datapub'],
              hookspath=[],
              runtime_hooks=[],
-             excludes=[],
+             excludes=['PySide', 'PyQt4'],
              win_no_prefer_redirects=False,
              win_private_assemblies=False,
              cipher=block_cipher)
@@ -48,7 +53,7 @@ exe = EXE(pyz,
           a.datas,
           name='mu',
           strip=False,
-          upx=True,
+          upx=False,
           # False hides the cli window, useful ON to debug
           console=False,
           debug=False,
