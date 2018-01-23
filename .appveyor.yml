@@ -36,10 +36,6 @@ init:
   - cmd: pip freeze
 
 install:
-  # Download WiX with 10min timeout, and install it.
-  - ps: Start-FileDownload 'https://github.com/wixtoolset/wix3/releases/download/wix3111rtm/wix311.exe' -Timeout 600000
-  - cmd wix311.exe /S
-
   # Install python dependencies (v3.2 has VC++ redistributable dependencies)
   - cmd: pip install pyinstaller==3.3.1
   - cmd: pip install pyzmq==15.3.0
