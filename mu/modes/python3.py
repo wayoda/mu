@@ -16,12 +16,53 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
+import os
 import logging
 from mu.modes.base import BaseMode
-from qtconsole.inprocess import QtInProcessKernelManager
+from mu.modes.api import PYTHON3_APIS, SHARED_APIS, PI_APIS
+from qtconsole.manager import QtKernelManager
+from qtconsole.client import QtKernelClient
+from PyQt5.QtCore import QObject, QThread, pyqtSignal
 
 
 logger = logging.getLogger(__name__)
+
+
+class KernelRunner(QObject):
+    """
+    Used to control the iPython kernel in a non-blocking manner so the UI
+    remains responsive.
+    """
+    kernel_started = pyqtSignal(QtKernelManager, QtKernelClient)
+    kernel_finished = pyqtSignal()
+
+    def __init__(self, cwd):
+        """
+        Initialise the kernel runner with a target current working directory.
+        """
+        super().__init__()
+        self.cwd = cwd
+
+    def start_kernel(self):
+        """
+        Start the kernel, obtain a client and emit a signal when both are
+        started.
+        """
+        os.chdir(self.cwd)  # Ensure the kernel runs with the expected CWD.
+        self.repl_kernel_manager = QtKernelManager()
+        self.repl_kernel_manager.start_kernel()
+        self.repl_kernel_client = self.repl_kernel_manager.client()
+        self.kernel_started.emit(self.repl_kernel_manager,
+                                 self.repl_kernel_client)
+
+    def stop_kernel(self):
+        """
+        Stop the client connections to the kernel, affect an immediate
+        shutdown of the kernel and emit a "finished" signal.
+        """
+        self.repl_kernel_client.stop_channels()
+        self.repl_kernel_manager.shutdown_kernel(now=True)
+        self.kernel_finished.emit()
 
 
 class PythonMode(BaseMode):
@@ -34,6 +75,8 @@ class PythonMode(BaseMode):
     icon = 'python'
     runner = None
     has_debugger = True
+    kernel_runner = None
+    stop_kernel = pyqtSignal()
 
     def actions(self):
         """
@@ -62,7 +105,7 @@ class PythonMode(BaseMode):
         Return a list of API specifications to be used by auto-suggest and call
         tips.
         """
-        return []
+        return SHARED_APIS + PYTHON3_APIS + PI_APIS
 
     def run(self, event):
         """
@@ -77,24 +120,58 @@ class PythonMode(BaseMode):
         """
         Toggles the REPL on and off
         """
-        if self.repl is None:
+        if self.kernel_runner is None:
             logger.info('Toggle REPL on.')
+            self.editor.show_status_message(_("Starting iPython REPL."))
             self.add_repl()
         else:
             logger.info('Toggle REPL off.')
+            self.editor.show_status_message(_("Stopping iPython REPL "
+                                              "(this may take a short amount "
+                                              "of time)."))
             self.remove_repl()
 
-    def add_repl(self,):
+    def add_repl(self):
         """
-        Create a new Jupyter REPL session.
+        Create a new Jupyter REPL session in a non-blocking way.
         """
-        self.repl = QtInProcessKernelManager()
-        self.repl.start_kernel(show_banner=False)
-        self.view.add_jupyter_repl(self.repl)
+        self.view.button_bar.slots['repl'].setEnabled(False)
+        self.kernel_thread = QThread()
+        self.kernel_runner = KernelRunner(cwd=self.workspace_dir())
+        self.kernel_runner.moveToThread(self.kernel_thread)
+        self.kernel_runner.kernel_started.connect(self.on_kernel_start)
+        self.kernel_runner.kernel_finished.connect(self.kernel_thread.quit)
+        self.stop_kernel.connect(self.kernel_runner.stop_kernel)
+        self.kernel_thread.started.connect(self.kernel_runner.start_kernel)
+        self.kernel_thread.finished.connect(self.on_kernel_stop)
+        self.kernel_thread.start()
 
     def remove_repl(self):
         """
         Remove the Jupyter REPL session.
         """
         self.view.remove_repl()
-        self.repl = None
+        self.view.button_bar.slots['repl'].setEnabled(False)
+        # Don't block the GUI
+        self.stop_kernel.emit()
+
+    def on_kernel_start(self, kernel_manager, kernel_client):
+        """
+        Handles UI update when the kernel runner has started the iPython
+        kernel.
+        """
+        self.view.add_jupyter_repl(kernel_manager, kernel_client)
+        self.view.button_bar.slots['repl'].setEnabled(True)
+        self.editor.show_status_message(_("REPL started."))
+
+    def on_kernel_stop(self):
+        """
+        Handles UI updates for when the kernel runner has shut down the running
+        iPython kernel.
+        """
+        self.repl_kernel_manager = None
+        if 'repl' in self.view.button_bar.slots:
+            self.view.button_bar.slots['repl'].setEnabled(True)
+        self.editor.show_status_message(_("REPL stopped."))
+        self.kernel_runner = None
+        self.kernel_thread = None

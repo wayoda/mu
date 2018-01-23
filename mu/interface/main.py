@@ -216,7 +216,7 @@ class Window(QMainWindow):
         path. Defaults to start in the referenced folder.
         """
         path, _ = QFileDialog.getOpenFileName(self.widget, 'Open file', folder,
-                                              '*.py *.hex')
+                                              '*.py *.PY *.hex')
         logger.debug('Getting load path: {}'.format(path))
         return path
 
@@ -294,7 +294,7 @@ class Window(QMainWindow):
                 return True
         return False
 
-    def add_filesystem(self, home):
+    def add_filesystem(self, home, file_manager):
         """
         Adds the file system pane to the application.
         """
@@ -305,7 +305,22 @@ class Window(QMainWindow):
         self.fs.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.fs)
         self.fs_pane.setFocus()
+        file_manager.on_list_files.connect(self.fs_pane.on_ls)
+        self.fs_pane.list_files.connect(file_manager.ls)
+        self.fs_pane.microbit_fs.put.connect(file_manager.put)
+        self.fs_pane.microbit_fs.delete.connect(file_manager.delete)
+        self.fs_pane.microbit_fs.list_files.connect(file_manager.ls)
+        self.fs_pane.local_fs.get.connect(file_manager.get)
+        self.fs_pane.local_fs.list_files.connect(file_manager.ls)
+        file_manager.on_put_file.connect(self.fs_pane.microbit_fs.on_put)
+        file_manager.on_delete_file.connect(self.fs_pane.microbit_fs.on_delete)
+        file_manager.on_get_file.connect(self.fs_pane.local_fs.on_get)
+        file_manager.on_list_fail.connect(self.fs_pane.on_ls_fail)
+        file_manager.on_put_fail.connect(self.fs_pane.on_put_fail)
+        file_manager.on_delete_fail.connect(self.fs_pane.on_delete_fail)
+        file_manager.on_get_fail.connect(self.fs_pane.on_get_fail)
         self.connect_zoom(self.fs_pane)
+        return self.fs_pane
 
     def add_micropython_repl(self, repl, name):
         """
@@ -314,16 +329,14 @@ class Window(QMainWindow):
         repl_pane = MicroPythonREPLPane(port=repl.port, theme=self.theme)
         self.add_repl(repl_pane, name)
 
-    def add_jupyter_repl(self, repl):
+    def add_jupyter_repl(self, kernel_manager, kernel_client):
         """
         Adds a Jupyter based REPL pane to the application.
         """
-        kernel = repl.kernel
-        kernel.gui = 'qt4'
-        kernel_client = repl.client()
+        kernel_manager.kernel.gui = 'qt4'
         kernel_client.start_channels()
         ipython_widget = JupyterREPLPane(theme=self.theme)
-        ipython_widget.kernel_manager = repl
+        ipython_widget.kernel_manager = kernel_manager
         ipython_widget.kernel_client = kernel_client
         self.add_repl(ipython_widget, _('Python3 (Jupyter)'))
 
@@ -674,6 +687,15 @@ class Window(QMainWindow):
         if self.timer:
             self.timer.stop()
             self.timer = None
+
+    def connect_tab_rename(self, handler, shortcut):
+        """
+        Connect the double-click event on a tab and the keyboard shortcut to
+        the referenced handler (causing the Save As dialog).
+        """
+        self.tabs.shortcut = QShortcut(QKeySequence(shortcut), self)
+        self.tabs.shortcut.activated.connect(handler)
+        self.tabs.tabBarDoubleClicked.connect(handler)
 
 
 class StatusBar(QStatusBar):

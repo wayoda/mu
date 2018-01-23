@@ -25,9 +25,14 @@ import gettext
 
 
 # Configure locale and language
+# Define where the translation assets are to be found.
 localedir = os.path.join('mu', 'locale')
+# Use the operating system's locale.
 current_locale, encoding = locale.getdefaultlocale()
+# Get the language code.
 language_code = current_locale[:2]
+# DEBUG/TRANSLATE: override the language code here (e.g. to Spanish).
+# language_code = 'es'
 gettext.translation('mu', localedir=localedir,
                     languages=[language_code], fallback=True).install()
 
@@ -114,6 +119,7 @@ def run():
     passed_filename = sys.argv[1] if len(sys.argv) > 1 else None
     editor.restore_session(passed_filename)
     # Connect the various UI elements in the window to the editor.
+    editor_window.connect_tab_rename(editor.rename_tab, 'Ctrl+Shift+S')
     status_bar = editor_window.status_bar
     status_bar.connect_logs(editor.show_logs, 'Ctrl+Shift+D')
     status_bar.connect_mode(editor.select_mode, 'Ctrl+Shift+M')

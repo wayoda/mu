@@ -379,7 +379,7 @@ def test_Window_get_load_path():
         assert w.get_load_path('micropython') == path
     mock_fd.getOpenFileName.assert_called_once_with(w.widget, 'Open file',
                                                     'micropython',
-                                                    '*.py *.hex')
+                                                    '*.py *.PY *.hex')
 
 
 def test_Window_get_save_path():
@@ -535,13 +535,41 @@ def test_Window_add_filesystem():
     mock_fs_class = mock.MagicMock(return_value=mock_fs)
     mock_dock = mock.MagicMock()
     mock_dock_class = mock.MagicMock(return_value=mock_dock)
+    mock_file_manager = mock.MagicMock()
     with mock.patch('mu.interface.main.FileSystemPane', mock_fs_class), \
             mock.patch('mu.interface.main.QDockWidget', mock_dock_class):
-        w.add_filesystem('path/to/home')
+        result = w.add_filesystem('path/to/home', mock_file_manager)
     mock_fs_class.assert_called_once_with('path/to/home')
+    assert result == mock_fs
     assert w.fs_pane == mock_fs
     w.addDockWidget.assert_called_once_with(Qt.BottomDockWidgetArea, mock_dock)
     mock_fs.setFocus.assert_called_once_with()
+    mock_file_manager.on_list_files.connect.\
+        assert_called_once_with(mock_fs.on_ls)
+    mock_fs.list_files.connect.assert_called_once_with(mock_file_manager.ls)
+    mock_fs.microbit_fs.put.connect.\
+        assert_called_once_with(mock_file_manager.put)
+    mock_fs.microbit_fs.delete.connect.\
+        assert_called_once_with(mock_file_manager.delete)
+    mock_fs.microbit_fs.list_files.connect.\
+        assert_called_once_with(mock_file_manager.ls)
+    mock_fs.local_fs.get.connect.assert_called_once_with(mock_file_manager.get)
+    mock_fs.local_fs.list_files.connect.\
+        assert_called_once_with(mock_file_manager.ls)
+    mock_file_manager.on_put_file.connect.\
+        assert_called_once_with(mock_fs.microbit_fs.on_put)
+    mock_file_manager.on_delete_file.connect.\
+        assert_called_once_with(mock_fs.microbit_fs.on_delete)
+    mock_file_manager.on_get_file.connect.\
+        assert_called_once_with(mock_fs.local_fs.on_get)
+    mock_file_manager.on_list_fail.connect.\
+        assert_called_once_with(mock_fs.on_ls_fail)
+    mock_file_manager.on_put_fail.connect.\
+        assert_called_once_with(mock_fs.on_put_fail)
+    mock_file_manager.on_delete_fail.connect.\
+        assert_called_once_with(mock_fs.on_delete_fail)
+    mock_file_manager.on_get_fail.connect.\
+        assert_called_once_with(mock_fs.on_get_fail)
     w.connect_zoom.assert_called_once_with(mock_fs)
 
 
@@ -574,19 +602,16 @@ def test_Window_add_jupyter_repl():
     w.theme = mock.MagicMock()
     w.connect_zoom = mock.MagicMock(return_value=None)
     w.add_repl = mock.MagicMock()
-    mock_repl = mock.MagicMock()
-    mock_kernel = mock.MagicMock()
+    mock_kernel_manager = mock.MagicMock()
     mock_kernel_client = mock.MagicMock()
-    mock_repl.kernel = mock_kernel
-    mock_repl.client.return_value = mock_kernel_client
     mock_pane = mock.MagicMock()
     mock_pane_class = mock.MagicMock(return_value=mock_pane)
     with mock.patch('mu.interface.main.JupyterREPLPane', mock_pane_class):
-        w.add_jupyter_repl(mock_repl)
+        w.add_jupyter_repl(mock_kernel_manager, mock_kernel_client)
     mock_pane_class.assert_called_once_with(theme=w.theme)
-    assert mock_pane.kernel_manager == mock_repl
+    assert mock_pane.kernel_manager == mock_kernel_manager
     assert mock_pane.kernel_client == mock_kernel_client
-    assert mock_kernel.gui == 'qt4'
+    assert mock_kernel_manager.kernel.gui == 'qt4'
     w.add_repl.assert_called_once_with(mock_pane, 'Python3 (Jupyter)')
 
 
@@ -1133,6 +1158,24 @@ def test_Window_stop_timer():
     w.stop_timer()
     assert w.timer is None
     mock_timer.stop.assert_called_once_with()
+
+
+def test_Window_connect_tab_rename():
+    """
+    Ensure the referenced handler and shortcuts are set up to fire when
+    the tab is double-clicked.
+    """
+    w = mu.interface.main.Window()
+    w.tabs = mock.MagicMock()
+    mock_handler = mock.MagicMock()
+    mock_shortcut = mock.MagicMock()
+    mock_sequence = mock.MagicMock()
+    with mock.patch('mu.interface.main.QShortcut', mock_shortcut), \
+            mock.patch('mu.interface.main.QKeySequence', mock_sequence):
+        w.connect_tab_rename(mock_handler, 'Ctrl-Shift-S')
+    w.tabs.tabBarDoubleClicked.connect.assert_called_once_with(mock_handler)
+    mock_shortcut.assert_called_once_with(mock_sequence('Ctrl-Shift-S'), w)
+    mock_shortcut().activated.connect.assert_called_once_with(mock_handler)
 
 
 def test_StatusBar_init():

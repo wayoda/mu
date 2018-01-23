@@ -2,11 +2,13 @@
 """
 Tests for the user interface elements of Mu.
 """
-from PyQt5.QtWidgets import QApplication, QMessageBox, QLabel, QListWidget
+from PyQt5.QtWidgets import QApplication, QMessageBox, QLabel
 from PyQt5.QtCore import QIODevice, Qt
 from PyQt5.QtGui import QTextCursor
 from unittest import mock
+import sys
 import os
+import mu
 import platform
 import mu.interface.panes
 import pytest
@@ -51,6 +53,27 @@ def test_MicroPythonREPLPane_init_cannot_open():
     with mock.patch('mu.interface.panes.QSerialPort', mock_serial_class):
         with pytest.raises(IOError):
             mu.interface.panes.MicroPythonREPLPane('COM0')
+
+
+def test_MicroPythonREPLPane_init_DTR_unset():
+    """
+    If data terminal ready (DTR) is unset (as can be the case on some
+    Windows / Qt combinations) then fall back to PySerial to correct. See
+    issues #281 and #302 for details.
+    """
+    mock_qt_serial = mock.MagicMock()
+    mock_qt_serial.isDataTerminalReady.return_value = False
+    mock_py_serial = mock.MagicMock()
+    mock_serial_class = mock.MagicMock(return_value=mock_qt_serial)
+    with mock.patch('mu.interface.panes.QSerialPort', mock_serial_class):
+        with mock.patch('mu.interface.panes.serial', mock_py_serial):
+            mu.interface.panes.MicroPythonREPLPane('COM0')
+    mock_qt_serial.close.assert_called_once_with()
+    assert mock_qt_serial.open.call_count == 2
+    mock_py_serial.Serial.assert_called_once_with('COM0')
+    mock_pyser = mock_py_serial.Serial('COM0')
+    assert mock_pyser.dtr is True
+    mock_pyser.close.assert_called_once_with()
 
 
 def test_MicroPythonREPLPane_paste():
@@ -575,36 +598,6 @@ def test_MicroPythonREPLPane_clear():
         rp.setText.assert_called_once_with('')
 
 
-def test_MuFileList_disable():
-    """
-    Disable and block drops on the current and sibling MuFileList.
-    """
-    mock_sibling = mock.MagicMock()
-    mfl = mu.interface.panes.MuFileList()
-    mfl.setDisabled = mock.MagicMock(return_value=True)
-    mfl.setAcceptDrops = mock.MagicMock(return_value=True)
-    mfl.disable(mock_sibling)
-    mfl.setDisabled.assert_called_once_with(True)
-    mock_sibling.setDisabled.assert_called_once_with(True)
-    mfl.setAcceptDrops.assert_called_once_with(False)
-    mock_sibling.setAcceptDrops.assert_called_once_with(False)
-
-
-def test_MuFileList_enable():
-    """
-    Allow drops and interactions with current and sibling MuFileList.
-    """
-    mock_sibling = mock.MagicMock()
-    mfl = mu.interface.panes.MuFileList()
-    mfl.setDisabled = mock.MagicMock(return_value=True)
-    mfl.setAcceptDrops = mock.MagicMock(return_value=True)
-    mfl.enable(mock_sibling)
-    mfl.setDisabled.assert_called_once_with(False)
-    mock_sibling.setDisabled.assert_called_once_with(False)
-    mfl.setAcceptDrops.assert_called_once_with(True)
-    mock_sibling.setAcceptDrops.assert_called_once_with(True)
-
-
 def test_MuFileList_show_confirm_overwrite_dialog():
     """
     Ensure the user is notified of an existing file.
@@ -645,56 +638,15 @@ def test_MicrobitFileList_dropEvent():
     mock_item.text.return_value = 'foo.py'
     source.currentItem = mock.MagicMock(return_value=mock_item)
     mock_event.source.return_value = source
-    mock_context = mock.MagicMock()
-    mock_serial = mock.MagicMock()
-    mock_serial.port = 'COM0'
-    mock_context.__enter__.return_value = mock_serial
     mfs = mu.interface.panes.MicrobitFileList('homepath')
     mfs.disable = mock.MagicMock()
-    mfs.enable = mock.MagicMock()
-    mfs.parent = mock.MagicMock()
-    with mock.patch('mu.interface.panes.microfs.get_serial',
-                    return_value=mock_context), \
-            mock.patch('mu.interface.panes.MuFileList.dropEvent',
-                       return_value=None) as mock_dropEvent, \
-            mock.patch('mu.interface.panes.microfs.put',
-                       return_value=True) as mock_put:
-        mfs.dropEvent(mock_event)
-        mfs.disable.assert_called_once_with(source)
-        home = os.path.join('homepath', 'foo.py')
-        mock_put.assert_called_once_with(mock_serial, home)
-        mock_dropEvent.assert_called_once_with(mock_event)
-        mfs.enable.assert_called_once_with(source)
-        mfs.parent().ls.assert_called_once_with()
-
-
-def test_MicrobitFileList_dropEvent_error():
-    """
-    Ensure that if an error occurs there is no change in the file list state.
-    """
-    mock_event = mock.MagicMock()
-    source = mu.interface.panes.LocalFileList('homepath')
-    mock_item = mock.MagicMock()
-    mock_item.text.return_value = 'foo.py'
-    source.currentItem = mock.MagicMock(return_value=mock_item)
-    mock_event.source.return_value = source
-    mock_context = mock.MagicMock()
-    mock_serial = mock.MagicMock()
-    mock_serial.port = 'COM0'
-    mock_context.__enter__.return_value = mock_serial
-    mfs = mu.interface.panes.MicrobitFileList('homepath')
-    mfs.disable = mock.MagicMock()
-    mfs.enable = mock.MagicMock()
-    ex = IOError('BANG')
-    with mock.patch('mu.interface.panes.microfs.get_serial',
-                    return_value=mock_context), \
-            mock.patch('mu.interface.panes.microfs.put', side_effect=ex), \
-            mock.patch('mu.interface.panes.logger.error',
-                       return_value=None) as log:
-        mfs.dropEvent(mock_event)
-        log.assert_called_once_with(ex)
-        mfs.disable.assert_called_once_with(source)
-        mfs.enable.assert_called_once_with(source)
+    mfs.set_message = mock.MagicMock()
+    mfs.put = mock.MagicMock()
+    # Test
+    mfs.dropEvent(mock_event)
+    fn = os.path.join('homepath', 'foo.py')
+    assert mfs.set_message.emit.call_count == 1
+    mfs.put.emit.assert_called_once_with(fn)
 
 
 def test_MicrobitFileList_dropEvent_wrong_source():
@@ -706,13 +658,22 @@ def test_MicrobitFileList_dropEvent_wrong_source():
     source = mock.MagicMock()
     mock_event.source.return_value = source
     mfs = mu.interface.panes.MicrobitFileList('homepath')
-    mfs.disable = mock.MagicMock()
-    mfs.enable = mock.MagicMock()
-    with mock.patch('mu.interface.panes.microfs.put', return_value=None) as mp:
-        mfs.dropEvent(mock_event)
-        assert mp.call_count == 0
-    mfs.disable.assert_called_once_with(source)
-    mfs.enable.assert_called_once_with(source)
+    mfs.findItems = mock.MagicMock()
+    mfs.dropEvent(mock_event)
+    assert mfs.findItems.call_count == 0
+
+
+def test_MicrobitFileList_on_put():
+    """
+    A message and list_files signal should be emitted.
+    """
+    mfs = mu.interface.panes.MicrobitFileList('homepath')
+    mfs.set_message = mock.MagicMock()
+    mfs.list_files = mock.MagicMock()
+    mfs.on_put('my_file.py')
+    msg = "'my_file.py' successfully copied to micro:bit."
+    mfs.set_message.emit.assert_called_once_with(msg)
+    mfs.list_files.emit.assert_called_once_with()
 
 
 def test_MicrobitFileList_contextMenuEvent():
@@ -728,59 +689,29 @@ def test_MicrobitFileList_contextMenuEvent():
     mock_current = mock.MagicMock()
     mock_current.text.return_value = 'foo.py'
     mfs.currentItem = mock.MagicMock(return_value=mock_current)
-    mfs.mapToGlobal = mock.MagicMock(return_value=None)
-    mfs.setDisabled = mock.MagicMock(return_value=None)
-    mfs.setAcceptDrops = mock.MagicMock(return_value=None)
-    mock_context = mock.MagicMock()
-    mock_serial = mock.MagicMock()
-    mock_serial.port = 'COM0'
-    mock_context.__enter__.return_value = mock_serial
+    mfs.disable = mock.MagicMock()
+    mfs.set_message = mock.MagicMock()
+    mfs.delete = mock.MagicMock()
+    mfs.mapToGlobal = mock.MagicMock()
     mock_event = mock.MagicMock()
-    with mock.patch('mu.interface.panes.microfs.get_serial',
-                    return_value=mock_context), \
-            mock.patch('mu.interface.panes.microfs.rm',
-                       return_value=None) as mock_rm, \
-            mock.patch('mu.interface.panes.QMenu', return_value=mock_menu):
+    with mock.patch('mu.interface.panes.QMenu', return_value=mock_menu):
         mfs.contextMenuEvent(mock_event)
-        mock_rm.assert_called_once_with(mock_serial, 'foo.py')
-        assert mfs.setDisabled.call_count == 2
-        assert mfs.setAcceptDrops.call_count == 2
+    mfs.disable.emit.assert_called_once_with()
+    assert mfs.set_message.emit.call_count == 1
+    mfs.delete.emit.assert_called_once_with('foo.py')
 
 
-def test_MicrobitFileList_contextMenuEvent_error():
+def test_MicrobitFileList_on_delete():
     """
-    Ensure that if there's an error while preparing for the rm operation that
-    it aborts without enacting.
+    On delete should emit a message and list_files signal.
     """
-    mock_menu = mock.MagicMock()
-    mock_action = mock.MagicMock()
-    mock_menu.addAction.return_value = mock_action
-    mock_menu.exec_.return_value = mock_action
     mfs = mu.interface.panes.MicrobitFileList('homepath')
-    mock_current = mock.MagicMock()
-    mock_current.text.return_value = 'foo.py'
-    mfs.currentItem = mock.MagicMock(return_value=mock_current)
-    mfs.mapToGlobal = mock.MagicMock(return_value=None)
-    mfs.setDisabled = mock.MagicMock(return_value=None)
-    mfs.setAcceptDrops = mock.MagicMock(return_value=None)
-    mfs.takeItem = mock.MagicMock(return_value=None)
-    mock_context = mock.MagicMock()
-    mock_serial = mock.MagicMock()
-    mock_serial.port = 'COM0'
-    mock_context.__enter__.return_value = mock_serial
-    mock_event = mock.MagicMock()
-    ex = IOError('BANG')
-    with mock.patch('mu.interface.panes.microfs.get_serial',
-                    return_value=mock_context), \
-            mock.patch('mu.interface.panes.microfs.rm', side_effect=ex), \
-            mock.patch('mu.interface.panes.QMenu', return_value=mock_menu), \
-            mock.patch('mu.interface.panes.logger.error',
-                       return_value=None) as log:
-        mfs.contextMenuEvent(mock_event)
-        log.assert_called_once_with(ex)
-        assert mfs.takeItem.call_count == 0
-        assert mfs.setDisabled.call_count == 2
-        assert mfs.setAcceptDrops.call_count == 2
+    mfs.set_message = mock.MagicMock()
+    mfs.list_files = mock.MagicMock()
+    mfs.on_delete('my_file.py')
+    msg = "'my_file.py' successfully deleted from micro:bit."
+    mfs.set_message.emit.assert_called_once_with(msg)
+    mfs.list_files.emit.assert_called_once_with()
 
 
 def test_LocalFileList_init():
@@ -802,56 +733,16 @@ def test_LocalFileList_dropEvent():
     mock_item.text.return_value = 'foo.py'
     source.currentItem = mock.MagicMock(return_value=mock_item)
     mock_event.source.return_value = source
-    mock_context = mock.MagicMock()
-    mock_serial = mock.MagicMock()
-    mock_serial.port = 'COM0'
-    mock_context.__enter__.return_value = mock_serial
     lfs = mu.interface.panes.LocalFileList('homepath')
     lfs.disable = mock.MagicMock()
-    lfs.enable = mock.MagicMock()
-    lfs.parent = mock.MagicMock()
-    with mock.patch('mu.interface.panes.microfs.get_serial',
-                    return_value=mock_context), \
-            mock.patch('mu.interface.panes.MuFileList.dropEvent',
-                       return_value=None) as mock_dropEvent, \
-            mock.patch('mu.interface.panes.microfs.get',
-                       return_value=True) as mock_get:
-        lfs.dropEvent(mock_event)
-        lfs.disable.assert_called_once_with(source)
-        home = os.path.join('homepath', 'foo.py')
-        mock_get.assert_called_once_with(mock_serial, 'foo.py', home)
-        mock_dropEvent.assert_called_once_with(mock_event)
-        lfs.enable.assert_called_once_with(source)
-        lfs.parent().ls.assert_called_once_with()
-
-
-def test_LocalFileList_dropEvent_error():
-    """
-    Ensure that if an error occurs there is no change in the file list state.
-    """
-    mock_event = mock.MagicMock()
-    source = mu.interface.panes.MicrobitFileList('homepath')
-    mock_item = mock.MagicMock()
-    mock_item.text.return_value = 'foo.py'
-    source.currentItem = mock.MagicMock(return_value=mock_item)
-    mock_event.source.return_value = source
-    mock_context = mock.MagicMock()
-    mock_serial = mock.MagicMock()
-    mock_serial.port = 'COM0'
-    mock_context.__enter__.return_value = mock_serial
-    lfs = mu.interface.panes.LocalFileList('homepath')
-    lfs.disable = mock.MagicMock()
-    lfs.enable = mock.MagicMock()
-    ex = IOError('BANG')
-    with mock.patch('mu.interface.panes.microfs.get_serial',
-                    return_value=mock_context), \
-            mock.patch('mu.interface.panes.microfs.get', side_effect=ex), \
-            mock.patch('mu.interface.panes.logger.error',
-                       return_value=None) as log:
-        lfs.dropEvent(mock_event)
-        log.assert_called_once_with(ex)
-        lfs.disable.assert_called_once_with(source)
-        lfs.enable.assert_called_once_with(source)
+    lfs.set_message = mock.MagicMock()
+    lfs.get = mock.MagicMock()
+    # Test
+    lfs.dropEvent(mock_event)
+    fn = os.path.join('homepath', 'foo.py')
+    lfs.disable.emit.assert_called_once_with()
+    assert lfs.set_message.emit.call_count == 1
+    lfs.get.emit.assert_called_once_with('foo.py', fn)
 
 
 def test_LocalFileList_dropEvent_wrong_source():
@@ -863,63 +754,172 @@ def test_LocalFileList_dropEvent_wrong_source():
     source = mock.MagicMock()
     mock_event.source.return_value = source
     lfs = mu.interface.panes.LocalFileList('homepath')
-    lfs.disable = mock.MagicMock()
-    lfs.enable = mock.MagicMock()
-    with mock.patch('mu.interface.panes.microfs.put', return_value=None) as mp:
-        lfs.dropEvent(mock_event)
-        assert mp.call_count == 0
-    lfs.disable.assert_called_once_with(source)
-    lfs.enable.assert_called_once_with(source)
+    lfs.findItems = mock.MagicMock()
+    lfs.dropEvent(mock_event)
+    assert lfs.findItems.call_count == 0
+
+
+def test_LocalFileList_on_get():
+    """
+    On get should emit two signals: a message and list_files.
+    """
+    lfs = mu.interface.panes.LocalFileList('homepath')
+    lfs.set_message = mock.MagicMock()
+    lfs.list_files = mock.MagicMock()
+    lfs.on_get('my_file.py')
+    msg = ("Successfully copied 'my_file.py' from the micro:bit "
+           "to your computer.")
+    lfs.set_message.emit.assert_called_once_with(msg)
+    lfs.list_files.emit.assert_called_once_with()
 
 
 def test_FileSystemPane_init():
     """
     Check things are set up as expected.
     """
-    with mock.patch('mu.interface.panes.FileSystemPane.ls',
-                    return_value=None) as mock_ls:
+    home = 'homepath'
+    test_microbit_fs = mu.interface.panes.MicrobitFileList(home)
+    test_microbit_fs.disable = mock.MagicMock()
+    test_microbit_fs.set_message = mock.MagicMock()
+    test_local_fs = mu.interface.panes.LocalFileList(home)
+    test_local_fs.disable = mock.MagicMock()
+    test_local_fs.set_message = mock.MagicMock()
+    mock_mfl = mock.MagicMock(return_value=test_microbit_fs)
+    mock_lfl = mock.MagicMock(return_value=test_local_fs)
+    with mock.patch('mu.interface.panes.MicrobitFileList', mock_mfl), \
+            mock.patch('mu.interface.panes.LocalFileList', mock_lfl):
         fsp = mu.interface.panes.FileSystemPane('homepath')
-    mock_ls.assert_called_once_with()
-    assert isinstance(fsp.microbit_label, QLabel)
-    assert isinstance(fsp.local_label, QLabel)
-    assert isinstance(fsp.microbit_fs, QListWidget)
-    assert isinstance(fsp.local_fs, QListWidget)
+        assert isinstance(fsp.microbit_label, QLabel)
+        assert isinstance(fsp.local_label, QLabel)
+        assert fsp.microbit_fs == test_microbit_fs
+        assert fsp.local_fs == test_local_fs
+        test_microbit_fs.disable.connect.assert_called_once_with(fsp.disable)
+        test_microbit_fs.set_message.connect.\
+            assert_called_once_with(fsp.show_message)
+        test_local_fs.disable.connect.assert_called_once_with(fsp.disable)
+        test_local_fs.set_message.connect.\
+            assert_called_once_with(fsp.show_message)
 
 
-def test_FileSystemPane_ls():
+def test_FileSystemPane_disable():
     """
-    Ensure the ls method works as expected.
+    The child list widgets are disabled correctly.
     """
-    microbit_files = ['foo.py', 'bar.py', 'baz.py']
-    local_files = ['spam.py', 'eggs.py']
-    # MOCK ALL TEH THIGNS!
-    with mock.patch('mu.interface.panes.MicrobitFileList.clear',
-                    return_value=None) as mfs_clear, \
-            mock.patch('mu.interface.panes.LocalFileList.clear',
-                       return_value=None) as lfs_clear, \
-            mock.patch('mu.interface.panes.microfs.ls',
-                       return_value=microbit_files), \
-            mock.patch('mu.interface.panes.microfs.get_serial',
-                       return_value=None), \
-            mock.patch('mu.interface.panes.os.listdir',
-                       return_value=local_files), \
-            mock.patch('mu.interface.panes.os.path.isfile',
-                       return_value=True), \
-            mock.patch('mu.interface.panes.os.path.join',
-                       return_value=None):
-        fsp = mu.interface.panes.FileSystemPane('homepath')
-        mfs_clear.assert_called_once_with()
-        lfs_clear.assert_called_once_with()
-        assert fsp.microbit_fs.count() == 3
-        assert fsp.local_fs.count() == 2
+    fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp.microbit_fs = mock.MagicMock()
+    fsp.local_fs = mock.MagicMock()
+    fsp.disable()
+    fsp.microbit_fs.setDisabled.assert_called_once_with(True)
+    fsp.local_fs.setDisabled.assert_called_once_with(True)
+    fsp.microbit_fs.setAcceptDrops.assert_called_once_with(False)
+    fsp.local_fs.setAcceptDrops.assert_called_once_with(False)
+
+
+def test_FileSystemPane_enable():
+    """
+    The child list widgets are enabled correctly.
+    """
+    fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp.microbit_fs = mock.MagicMock()
+    fsp.local_fs = mock.MagicMock()
+    fsp.enable()
+    fsp.microbit_fs.setDisabled.assert_called_once_with(False)
+    fsp.local_fs.setDisabled.assert_called_once_with(False)
+    fsp.microbit_fs.setAcceptDrops.assert_called_once_with(True)
+    fsp.local_fs.setAcceptDrops.assert_called_once_with(True)
+
+
+def test_FileSystemPane_show_message():
+    """
+    Ensure the expected message signal is emitted.
+    """
+    fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp.set_message = mock.MagicMock()
+    fsp.show_message('Hello')
+    fsp.set_message.emit.assert_called_once_with('Hello')
+
+
+def test_FileSystemPane_show_warning():
+    """
+    Ensure the expected warning signal is emitted.
+    """
+    fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp.set_warning = mock.MagicMock()
+    fsp.show_warning('Hello')
+    fsp.set_warning.emit.assert_called_once_with('Hello')
+
+
+def test_FileSystemPane_on_ls():
+    """
+    When lists of files have been obtained from the micro:bit and local
+    filesystem, make sure they're properly processed by the on_ls event
+    handler.
+    """
+    fsp = mu.interface.panes.FileSystemPane('homepath')
+    microbit_files = ['foo.py', 'bar.py', ]
+    fsp.microbit_fs = mock.MagicMock()
+    fsp.local_fs = mock.MagicMock()
+    fsp.enable = mock.MagicMock()
+    local_files = ['qux.py', 'baz.py', ]
+    mock_listdir = mock.MagicMock(return_value=local_files)
+    mock_isfile = mock.MagicMock(return_value=True)
+    with mock.patch('mu.interface.panes.os.listdir', mock_listdir),\
+            mock.patch('mu.interface.panes.os.path.isfile', mock_isfile):
+        fsp.on_ls(microbit_files)
+    fsp.microbit_fs.clear.assert_called_once_with()
+    fsp.local_fs.clear.assert_called_once_with()
+    assert fsp.microbit_fs.addItem.call_count == 2
+    assert fsp.local_fs.addItem.call_count == 2
+    fsp.enable.assert_called_once_with()
+
+
+def test_FileSystemPane_on_ls_fail():
+    """
+    A warning is emitted and the widget disabled if listing files fails.
+    """
+    fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp.show_warning = mock.MagicMock()
+    fsp.disable = mock.MagicMock()
+    fsp.on_ls_fail()
+    assert fsp.show_warning.call_count == 1
+    fsp.disable.assert_called_once_with()
+
+
+def test_FileSystem_Pane_on_put_fail():
+    """
+    A warning is emitted if putting files on the micro:bit fails.
+    """
+    fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp.show_warning = mock.MagicMock()
+    fsp.on_put_fail('foo.py')
+    assert fsp.show_warning.call_count == 1
+
+
+def test_FileSystem_Pane_on_delete_fail():
+    """
+    A warning is emitted if deleting files on the micro:bit fails.
+    """
+    fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp.show_warning = mock.MagicMock()
+    fsp.on_delete_fail('foo.py')
+    assert fsp.show_warning.call_count == 1
+
+
+def test_FileSystem_Pane_on_get_fail():
+    """
+    A warning is emitted if getting files from the micro:bit fails.
+    """
+    fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp.show_warning = mock.MagicMock()
+    fsp.on_get_fail('foo.py')
+    assert fsp.show_warning.call_count == 1
 
 
 def test_FileSystemPane_set_theme_day():
     """
     Ensures the day theme is set.
     """
-    with mock.patch('mu.interface.panes.FileSystemPane.ls', return_value=None):
-        fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp = mu.interface.panes.FileSystemPane('homepath')
     fsp.setStyleSheet = mock.MagicMock()
     fsp.set_theme('day')
     fsp.setStyleSheet.assert_called_once_with(mu.interface.themes.DAY_STYLE)
@@ -929,8 +929,7 @@ def test_FileSystemPane_set_theme_night():
     """
     Ensures the night theme is set.
     """
-    with mock.patch('mu.interface.panes.FileSystemPane.ls', return_value=None):
-        fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp = mu.interface.panes.FileSystemPane('homepath')
     fsp.setStyleSheet = mock.MagicMock()
     fsp.set_theme('night')
     fsp.setStyleSheet.assert_called_once_with(mu.interface.themes.NIGHT_STYLE)
@@ -940,8 +939,7 @@ def test_FileSystemPane_set_theme_contrast():
     """
     Ensures the contrast theme is set.
     """
-    with mock.patch('mu.interface.panes.FileSystemPane.ls', return_value=None):
-        fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp = mu.interface.panes.FileSystemPane('homepath')
     fsp.setStyleSheet = mock.MagicMock()
     fsp.set_theme('contrast')
     fsp.setStyleSheet.assert_called_once_with(
@@ -953,8 +951,7 @@ def test_FileSystemPane_set_font_size():
     Ensure the right size is set as the point size and the text based UI child
     widgets are updated.
     """
-    with mock.patch('mu.interface.panes.FileSystemPane.ls', return_value=None):
-        fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp = mu.interface.panes.FileSystemPane('homepath')
     fsp.font = mock.MagicMock()
     fsp.microbit_label = mock.MagicMock()
     fsp.local_label = mock.MagicMock()
@@ -972,8 +969,7 @@ def test_FileSystemPane_zoom_in():
     """
     Ensure the font is re-set bigger when zooming in.
     """
-    with mock.patch('mu.interface.panes.FileSystemPane.ls', return_value=None):
-        fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp = mu.interface.panes.FileSystemPane('homepath')
     fsp.set_font_size = mock.MagicMock()
     fsp.zoomIn()
     expected = mu.interface.themes.DEFAULT_FONT_SIZE + 2
@@ -984,8 +980,7 @@ def test_FileSystemPane_zoom_out():
     """
     Ensure the font is re-set smaller when zooming out.
     """
-    with mock.patch('mu.interface.panes.FileSystemPane.ls', return_value=None):
-        fsp = mu.interface.panes.FileSystemPane('homepath')
+    fsp = mu.interface.panes.FileSystemPane('homepath')
     fsp.set_font_size = mock.MagicMock()
     fsp.zoomOut()
     expected = mu.interface.themes.DEFAULT_FONT_SIZE - 2
@@ -1071,6 +1066,16 @@ def test_JupyterREPLPane_set_theme_contrast():
         mu.interface.themes.CONTRAST_STYLE)
 
 
+def test_JupyterREPLPane_setFocus():
+    """
+    Ensures setFocus actually occurs to the _control containing the REPL.
+    """
+    jw = mu.interface.panes.JupyterREPLPane()
+    jw._control = mock.MagicMock()
+    jw.setFocus()
+    jw._control.setFocus.assert_called_once_with()
+
+
 def test_PythonProcessPane_init():
     """
     Check the font and input_buffer is set.
@@ -1098,7 +1103,11 @@ def test_PythonProcessPane_start_process():
     ppp.process.readyRead.connect.assert_called_once_with(ppp.read)
     ppp.process.finished.connect.assert_called_once_with(ppp.finished)
     expected_script = os.path.abspath(os.path.normcase('script.py'))
-    ppp.process.start.assert_called_once_with('mu-debug', [expected_script])
+    mu_dir = os.path.dirname(os.path.abspath(mu.__file__))
+    runner = os.path.join(mu_dir, 'mu-debug.py')
+    expected_args = [runner, expected_script, ]
+    expected_python = sys.executable
+    ppp.process.start.assert_called_once_with(expected_python, expected_args)
 
 
 def test_PythonProcessPane_finished():

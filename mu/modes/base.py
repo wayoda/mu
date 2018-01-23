@@ -20,13 +20,14 @@ import json
 import os
 import logging
 from PyQt5.QtSerialPort import QSerialPortInfo
+from PyQt5.QtCore import QObject
 from mu.logic import HOME_DIRECTORY, WORKSPACE_NAME, get_settings_path
 
 
 logger = logging.getLogger(__name__)
 
 
-#: List of supported board USB IDs.  Each board is a tuple of unique USB vendor
+# List of supported board USB IDs.  Each board is a tuple of unique USB vendor
 # ID, USB product ID.
 BOARD_IDS = set([
     (0x0D28, 0x0204),  # micro:bit USB VID, PID
@@ -39,7 +40,7 @@ BOARD_IDS = set([
 ])
 
 
-class BaseMode:
+class BaseMode(QObject):
     """
     Represents the common aspects of a mode.
     """
@@ -55,6 +56,7 @@ class BaseMode:
     def __init__(self, editor, view):
         self.editor = editor
         self.view = view
+        super().__init__()
 
     def actions(self):
         """
