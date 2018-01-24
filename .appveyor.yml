@@ -59,12 +59,12 @@ test_script:
   - cmd: make coverage 
 
 # Push artifacts to s3 bucket and list all
-before_deploy:
+#before_deploy:
   #- ps: Get-ChildItem .\upload\*.exe | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name -DeploymentName mu-s3-deployment }
   #- ps: foreach($artifactName in $artifacts.keys) { $artifacts[$artifactName] }
 
 # Deploy build to Amazon S3 bucket
-deploy:
+#deploy:
   #name: mu-s3-deployment
   #provider: S3
   #access_key_id: AKIAJYJV7NN6HVHCX5NQ
@@ -74,5 +74,5 @@ deploy:
   #region: eu-west-2
   #set_public: true
   #folder: windows
-  on:
-    branch: [master, pynsis]
+  #on:
+  #  branch: [master, pynsis]
