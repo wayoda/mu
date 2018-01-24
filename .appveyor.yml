@@ -37,7 +37,7 @@ init:
 
 install:
   # Install python dependencies (v3.2 has VC++ redistributable dependencies)
-  - cmd: pip install pynsis
+  - cmd: pip install pynsist
   - cmd: pip install -r requirements.txt
 
   # Check installed packages
