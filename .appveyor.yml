@@ -37,22 +37,8 @@ init:
 
 install:
   # Install python dependencies (v3.2 has VC++ redistributable dependencies)
-  - cmd: pip install pyinstaller==3.3
-  - cmd: pip install pyzmq==15.3.0
-  #- cmd: pip install -r requirements.txt
-  - cmd: pip install pyqt5
-  - cmd: pip install qscintilla
-  - cmd: pip install pytest
-  - cmd: pip install pycodestyle
-  - cmd: pip install pyflakes
-  - cmd: pip install coverage
-  - cmd: pip install sphinx
-  - cmd: pip install pytest-cov
-  - cmd: pip install pyserial
-  - cmd: pip install qtconsole
-  - cmd: pip install matplotlib
-  - cmd: pip install setuptools
-
+  - cmd: pip install pynsis
+  - cmd: pip install -r requirements.txt
 
   # Check installed packages
   - cmd: pip freeze
@@ -60,10 +46,10 @@ install:
   - cmd: python -c "import PyQt5.Qsci"
 
   # Build mu using PyInstaller, rename dist folder and executable with timestamp
-  - cmd: pyinstaller package\pyinstaller.spec
-  - ps: Rename-Item -path .\dist upload
-  - cmd: dir upload
-  - ps: Rename-Item .\upload\mu.exe mu_$(get-date -f yyyy-MM-dd_HH_mm)_$($env:APPVEYOR_REPO_BRANCH)_$($env:APPVEYOR_REPO_COMMIT.subString(0,7)).exe
+  - cmd: pynsist installer.cfg
+  #- ps: Rename-Item -path .\dist upload
+  #- cmd: dir upload
+  #- ps: Rename-Item .\upload\mu.exe mu_$(get-date -f yyyy-MM-dd_HH_mm)_$($env:APPVEYOR_REPO_BRANCH)_$($env:APPVEYOR_REPO_COMMIT.subString(0,7)).exe
 
 # Not a project with an msbuild file, build done at install.
 build: None
@@ -74,19 +60,19 @@ test_script:
 
 # Push artifacts to s3 bucket and list all
 before_deploy:
-  - ps: Get-ChildItem .\upload\*.exe | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name -DeploymentName mu-s3-deployment }
-  - ps: foreach($artifactName in $artifacts.keys) { $artifacts[$artifactName] }
+  #- ps: Get-ChildItem .\upload\*.exe | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name -DeploymentName mu-s3-deployment }
+  #- ps: foreach($artifactName in $artifacts.keys) { $artifacts[$artifactName] }
 
 # Deploy build to Amazon S3 bucket
 deploy:
-  name: mu-s3-deployment
-  provider: S3
-  access_key_id: AKIAJYJV7NN6HVHCX5NQ
-  secret_access_key:
-    secure: PlLCQKTcf9IzBXpEnXUxbJifb0usS7qcghnM0VxBTX0IL3C975JPidrYjP39ge7P
-  bucket: mu-builds
-  region: eu-west-2
-  set_public: true
-  folder: windows
+  #name: mu-s3-deployment
+  #provider: S3
+  #access_key_id: AKIAJYJV7NN6HVHCX5NQ
+  #secret_access_key:
+  #  secure: PlLCQKTcf9IzBXpEnXUxbJifb0usS7qcghnM0VxBTX0IL3C975JPidrYjP39ge7P
+  #bucket: mu-builds
+  #region: eu-west-2
+  #set_public: true
+  #folder: windows
   on:
-    branch: [master, msi]
+    branch: [master, pynsis]
