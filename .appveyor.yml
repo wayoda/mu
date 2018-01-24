@@ -47,7 +47,7 @@ install:
 
   # Build mu using PyInstaller, rename dist folder and executable with timestamp
   - cmd: pynsist installer.cfg
-  - ps: Rename-Item -path .\dist upload
+  - ps: Rename-Item -path .\build upload
   - cmd: dir upload
   - ps: Rename-Item .\upload\nsis\Mu_1.0.0b13.exe Mu_NSIS_$(get-date -f yyyy-MM-dd_HH_mm)_$($env:APPVEYOR_REPO_BRANCH)_$($env:APPVEYOR_REPO_COMMIT.subString(0,7)).exe
 
