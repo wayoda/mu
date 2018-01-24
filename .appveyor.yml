@@ -47,9 +47,9 @@ install:
 
   # Build mu using PyInstaller, rename dist folder and executable with timestamp
   - cmd: pynsist installer.cfg
-  #- ps: Rename-Item -path .\dist upload
-  #- cmd: dir upload
-  #- ps: Rename-Item .\upload\mu.exe mu_$(get-date -f yyyy-MM-dd_HH_mm)_$($env:APPVEYOR_REPO_BRANCH)_$($env:APPVEYOR_REPO_COMMIT.subString(0,7)).exe
+  - ps: Rename-Item -path .\dist upload
+  - cmd: dir upload
+  - ps: Rename-Item .\upload\nsis\Mu_1.0.0b13.exe Mu_NSIS_$(get-date -f yyyy-MM-dd_HH_mm)_$($env:APPVEYOR_REPO_BRANCH)_$($env:APPVEYOR_REPO_COMMIT.subString(0,7)).exe
 
 # Not a project with an msbuild file, build done at install.
 build: None
@@ -60,19 +60,19 @@ test_script:
 
 # Push artifacts to s3 bucket and list all
 #before_deploy:
-  #- ps: Get-ChildItem .\upload\*.exe | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name -DeploymentName mu-s3-deployment }
-  #- ps: foreach($artifactName in $artifacts.keys) { $artifacts[$artifactName] }
+  - ps: Get-ChildItem .\upload\nsis\*.exe | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name -DeploymentName mu-s3-deployment }
+  - ps: foreach($artifactName in $artifacts.keys) { $artifacts[$artifactName] }
 
 # Deploy build to Amazon S3 bucket
-#deploy:
-  #name: mu-s3-deployment
-  #provider: S3
-  #access_key_id: AKIAJYJV7NN6HVHCX5NQ
-  #secret_access_key:
-  #  secure: PlLCQKTcf9IzBXpEnXUxbJifb0usS7qcghnM0VxBTX0IL3C975JPidrYjP39ge7P
-  #bucket: mu-builds
-  #region: eu-west-2
-  #set_public: true
-  #folder: windows
-  #on:
-  #  branch: [master, pynsis]
+deploy:
+  name: mu-s3-deployment
+  provider: S3
+  access_key_id: AKIAJYJV7NN6HVHCX5NQ
+  secret_access_key:
+    secure: PlLCQKTcf9IzBXpEnXUxbJifb0usS7qcghnM0VxBTX0IL3C975JPidrYjP39ge7P
+  bucket: mu-builds
+  region: eu-west-2
+  set_public: true
+  folder: windows
+  on:
+    branch: [master, pynsis]
