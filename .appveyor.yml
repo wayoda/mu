@@ -2,9 +2,9 @@ environment:
   matrix:
     - PYTHON: "C:\\Python36"
       PYTHON_VERSION: "3.6.4"
-      PYTHON_ARCH: "32"
+      PYTHON_ARCH: "64"
 
-platform: x86
+platform: x64
 
 configuration: Release
 
@@ -36,9 +36,11 @@ init:
   - cmd: pip freeze
 
 install:
-  # Install python dependencies (v3.2 has VC++ redistributable dependencies)
+  # Install / check python dependencies (v3.2 has VC++ redistributable dependencies)
+  - cmd: pip install simplegeneric 
   - cmd: pip install pynsist
   - cmd: pip install -r requirements.txt
+  - cmd: make coverage 
 
   # Check installed packages
   - cmd: pip freeze
@@ -53,10 +55,6 @@ install:
 
 # Not a project with an msbuild file, build done at install.
 build: None
-
-# Makefiles support provided by MinGW, which does POSIX translations, so run tests natively as well
-test_script:
-  - cmd: make coverage 
 
 # Push artifacts to s3 bucket and list all
 #before_deploy:
