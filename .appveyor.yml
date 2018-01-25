@@ -57,7 +57,7 @@ install:
 build: None
 
 # Push artifacts to s3 bucket and list all
-#before_deploy:
+before_deploy:
   - ps: Get-ChildItem .\upload\nsis\*.exe | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name -DeploymentName mu-s3-deployment }
   - ps: foreach($artifactName in $artifacts.keys) { $artifacts[$artifactName] }
 
