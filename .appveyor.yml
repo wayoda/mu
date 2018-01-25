@@ -2,9 +2,9 @@ environment:
   matrix:
     - PYTHON: "C:\\Python36"
       PYTHON_VERSION: "3.6.4"
-      PYTHON_ARCH: "64"
+      PYTHON_ARCH: "32"
 
-platform: x64
+platform: x86
 
 configuration: Release
 
