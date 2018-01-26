@@ -69,7 +69,7 @@ def setup_logging():
     log = logging.getLogger()
     log.setLevel(logging.DEBUG)
     log.addHandler(handler)
-    #sys.excepthook = excepthook
+    sys.excepthook = excepthook
     print(_('Logging to {}').format(LOG_FILE))
 
 
