@@ -602,7 +602,6 @@ class PythonProcessPane(QTextEdit):
         """
         Start the child process from the workspace with the script.
         """
-        logger.info('Python path: {}'.format(sys.path))
         self.script = os.path.abspath(os.path.normcase(script))
         logger.info('Running script: {}'.format(script))
         self.process = QProcess(self)
@@ -617,10 +616,8 @@ class PythonProcessPane(QTextEdit):
         self.process.finished.connect(self.finished)
         python_exec = sys.executable
         mu_dir = os.path.dirname(os.path.abspath(mu.__file__))
-        #runner = os.path.join(mu_dir, 'mu-debug.py')
         # Start the mu-debug runner within an interactive Python shell.
         logger.info('Python path: {}'.format(sys.path))
-        #self.process.start(python_exec, [runner, self.script])
         self.process.start('mu-debug', [self.script, ])
 
     def finished(self, code, status):
