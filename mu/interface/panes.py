@@ -616,7 +616,7 @@ class PythonProcessPane(QTextEdit):
         self.process.finished.connect(self.finished)
         python_exec = sys.executable
         mu_dir = os.path.dirname(os.path.abspath(mu.__file__))
-        # Start the mu-debug runner within an interactive Python shell.
+        # Start the mu-debug runner for the script.
         logger.info('Python path: {}'.format(sys.path))
         self.process.start('mu-debug', [self.script, ])
 
