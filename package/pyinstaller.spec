@@ -1,8 +1,11 @@
 # -*- mode: python -*-
 import os
 from glob import glob
+
+# Find PyQt5 directory
 from inspect import getfile
 import PyQt5
+pyqt_dir = os.path.dirname(getfile(PyQt5))
 
 
 # PyInstaller Cipher flag.
@@ -31,13 +34,13 @@ binary_files = []
 
 
 a = Analysis(['../run.py'],
-             pathex=['../', pyqt_dir, pyqt_dlls],
-             binaries=binary_files,
+             pathex=['../', pyqt_dir],
+             binaries=None,
              datas=data_files,
-             hiddenimports = ['ipykernel.datapub'],
+             hiddenimports = ['sip'],
              hookspath=[],
              runtime_hooks=[],
-             excludes=['PySide', 'PyQt4'],
+             excludes=[],
              win_no_prefer_redirects=False,
              win_private_assemblies=False,
              cipher=block_cipher)
@@ -53,10 +56,10 @@ exe = EXE(pyz,
           a.datas,
           name='mu',
           strip=False,
-          upx=False,
+          upx=True,
           # False hides the cli window, useful ON to debug
-          console=True,
-          debug=True,
+          console=False,
+          debug=False,
           icon='package/icons/win_icon.ico')
 
 app = BUNDLE(exe,
@@ -73,5 +76,5 @@ app = BUNDLE(exe,
 #               a.zipfiles,
 #               a.datas,
 #               strip=None,
-#               upx=False,
+#               upx=True,
 #               name='run')
