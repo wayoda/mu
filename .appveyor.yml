@@ -37,6 +37,14 @@ install:
   - cmd: pip install simplegeneric 
   - cmd: pip install -r requirements.txt
   
+  # Test possible fix
+  - cmd: pip uninstall -y pynsist
+  - cmd: pip install flit
+  - cmd: cd .. && git clone https://github.com/takluyver/pynsist && cd pynsist
+  - cmd: git checkout 1d9af0c759811fc66aed3305741eaf0aba316b74
+  - cmd: flit install
+  - cmd: cd ../mu/
+  
   # Install helpful pytest plug-in
   - cmd: pip install pytest-faulthandler
   
@@ -82,4 +90,4 @@ deploy:
   set_public: true
   folder: windows
   on:
-    branch: [master]
+    branch: [master, pynsist]
