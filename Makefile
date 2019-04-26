@@ -1,6 +1,7 @@
 XARGS := xargs -0 $(shell test $$(uname) = Linux && echo -r)
 GREP_T_FLAG := $(shell test $$(uname) = Linux && echo -T)
 export PYFLAKES_BUILTINS=_
+export LANG=en_GB.utf8
 
 all:
 	@echo "\nThere is no default Makefile target right now. Try:\n"
