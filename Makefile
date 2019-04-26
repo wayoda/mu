@@ -50,10 +50,10 @@ else
 endif
 
 pyflakes:
-	find . \( -name _build -o -name var -o -path ./docs -o -path ./mu/contrib -o -path ./utils -o -path ./venv -o -path ./package \) -type d -prune -o -name '*.py' -print0 | $(XARGS) pyflakes
+	find . \( -name _build -o -name var -o -path ./docs -o -path ./mu/contrib -o -path ./utils -o -path ./venv -o -path ./env -o -path ./mu-venv -o -path ./package \) -type d -prune -o -name '*.py' -print0 | $(XARGS) pyflakes
 
 pycodestyle:
-	find . \( -name _build -o -name var \) -type d -prune -o -name '*.py' -print0 | $(XARGS) -n 1 pycodestyle --repeat --exclude=package/*,build/*,docs/*,mu/contrib*,mu/modes/api/*,utils/*,venv/*,.vscode/* --ignore=E731,E402,W504
+	find . \( -name _build -o -name var -o -path ./venv -o -path ./env -o -path ./mu-venv \) -type d -prune -o -name '*.py' -print0 | $(XARGS) -n 1 pycodestyle --repeat --exclude=package/*,build/*,docs/*,mu/contrib*,mu/modes/api/*,utils/*,.vscode/* --ignore=E731,E402,W504
 
 test: clean
 	pytest --random-order
