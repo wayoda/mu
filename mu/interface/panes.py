@@ -160,8 +160,8 @@ class MicroPythonREPLPane(QTextEdit):
             copy_keys = QKeySequence(Qt.CTRL + Qt.SHIFT + Qt.Key_C)
             paste_keys = QKeySequence(Qt.CTRL + Qt.SHIFT + Qt.Key_V)
 
-        menu.addAction("Copy", self.copy, copy_keys)
-        menu.addAction("Paste", self.paste, paste_keys)
+        menu.addAction(_("Copy"), self.copy, copy_keys)
+        menu.addAction(_("Paste"), self.paste, paste_keys)
         menu.exec_(QCursor.pos())
 
     def set_theme(self, theme):
@@ -801,8 +801,8 @@ class PythonProcessPane(QTextEdit):
         else:
             copy_keys = QKeySequence(Qt.CTRL + Qt.SHIFT + Qt.Key_C)
             paste_keys = QKeySequence(Qt.CTRL + Qt.SHIFT + Qt.Key_V)
-        menu.addAction("Copy", self.copy, copy_keys)
-        menu.addAction("Paste", self.paste, paste_keys)
+        menu.addAction(_("Copy"), self.copy, copy_keys)
+        menu.addAction(_("Paste"), self.paste, paste_keys)
         menu.exec_(QCursor.pos())
 
     def paste(self):
