@@ -350,6 +350,10 @@ class MuFileList(QListWidget):
         msg.setText(_("File already exists; overwrite it?"))
         msg.setWindowTitle(_("File already exists"))
         msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        ok_button=msg.button(QMessageBox.Ok)
+        ok_button.setText(_("Ok"))
+        cancel_button=msg.button(QMessageBox.Cancel)
+        cancel_button.setText(_("Cancel"))
         return msg.exec_() == QMessageBox.Ok
 
 

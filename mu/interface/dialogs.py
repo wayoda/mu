@@ -81,6 +81,10 @@ class ModeSelector(QDialog):
         widget_layout.addWidget(instructions)
         button_box = QDialogButtonBox(QDialogButtonBox.Ok |
                                       QDialogButtonBox.Cancel)
+        ok_button=button_box.button(QDialogButtonBox.Ok)
+        ok_button.setText(_("Ok"))
+        cancel_button=button_box.button(QDialogButtonBox.Cancel)
+        cancel_button.setText(_("Cancel"))
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         widget_layout.addWidget(button_box)
@@ -207,6 +211,10 @@ class AdminDialog(QDialog):
         widget_layout.addWidget(self.tabs)
         button_box = QDialogButtonBox(QDialogButtonBox.Ok |
                                       QDialogButtonBox.Cancel)
+        ok_button=button_box.button(QDialogButtonBox.Ok)
+        ok_button.setText(_("Ok"))
+        cancel_button=button_box.button(QDialogButtonBox.Cancel)
+        cancel_button.setText(_("Cancel"))
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         widget_layout.addWidget(button_box)
@@ -275,6 +283,10 @@ class FindReplaceDialog(QDialog):
         widget_layout.addWidget(self.replace_all_flag)
         button_box = QDialogButtonBox(QDialogButtonBox.Ok |
                                       QDialogButtonBox.Cancel)
+        ok_button=button_box.button(QDialogButtonBox.Ok)
+        ok_button.setText(_("Ok"))
+        cancel_button=button_box.button(QDialogButtonBox.Cancel)
+        cancel_button.setText(_("Cancel"))
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         widget_layout.addWidget(button_box)
@@ -328,7 +340,9 @@ class PackageDialog(QDialog):
         widget_layout.addWidget(self.text_area)
         # Buttons.
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok)
-        self.button_box.button(QDialogButtonBox.Ok).setEnabled(False)
+        ok_button=self.button_box.button(QDialogButtonBox.Ok)
+        ok_button.setText(_("Ok"))
+        ok_button.setEnabled(False)
         self.button_box.accepted.connect(self.accept)
         widget_layout.addWidget(self.button_box)
         # Kick off processing of packages.
